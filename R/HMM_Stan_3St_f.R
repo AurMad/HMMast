@@ -163,9 +163,10 @@ transformed parameters{
 
       // test at times 2 to T
       for(t in row_sec[a]:row_last[a]){
-       for(j in 1:K){     // current state
 
-        if(y[t] == 2){
+      if(y[t] == 2){
+
+       for(j in 1:K){     // current state
 
          for(i in 1:K){   // state at t-1
 
@@ -173,19 +174,25 @@ transformed parameters{
 
           } // i
 
+        logalpha[t, j] = log_sum_exp(accumulator);
+
+       } // j
+
         } else {
 
-            for(i in 1:K){   // state at t-1
+        for(j in 1:K){     // current state
+
+          for(i in 1:K){   // state at t-1
 
             accumulator[i] = logalpha[t-1, i] + log(B[i, j]) + bernoulli_lpmf(y[t] | test_char[j]);
 
           } // i
 
-        } // if statement
-
           logalpha[t, j] = log_sum_exp(accumulator);
 
-        } // j
+         } // j
+
+        } // if statement
 
        } // end of loop for time
 

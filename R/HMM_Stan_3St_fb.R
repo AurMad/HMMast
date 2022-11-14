@@ -98,7 +98,7 @@ data{
   int<lower = 1> K;      // number of states
   int<lower = 1> n_obs;   // number of observations
   int<lower = 1> n_units;   // number of animals
-  array[n_obs] int<lower = 0, upper = 1> y; // test results
+  array[n_obs] int<lower = 0, upper = 2> y; // test results
   array[n_units] int<lower = 0, upper = n_obs> row_first; // id of first row for each cow/lactation
   array[n_units] int<lower = 0, upper = n_obs> row_sec;   // id of second row for each cow/lactation
   array[n_units] int<lower = 0, upper = n_obs> row_last;  // id of last row for each /lactation
@@ -179,7 +179,25 @@ transformed parameters{
 
       // test at times 2 to T
       for(t in row_sec[a]:row_last[a]){
+
+      if(y[t] == 2){
+
        for(j in 1:K){     // current state
+
+         for(i in 1:K){   // state at t-1
+
+            accumulator[i] = logalpha[t-1, i] + log(B[i, j]);
+
+          } // i
+
+      logalpha[t, j] = log_sum_exp(accumulator);
+
+       } // j
+
+        } else {
+
+       for(j in 1:K){     // current state
+
          for(i in 1:K){   // state at t-1
 
             accumulator[i] = logalpha[t-1, i] + log(B[i, j]) + bernoulli_lpmf(y[t] | test_char[j]);
@@ -189,6 +207,8 @@ transformed parameters{
           logalpha[t, j] = log_sum_exp(accumulator);
 
         } // j
+
+        } // if statement
 
        } // end of loop for time
 
@@ -210,8 +230,26 @@ transformed parameters{
       int t;
       t = row_last[a] - tforward;
 
-      for(j in 1:K){     // previous state, from j to i
-        for(i in 1:K){   // current state
+      if(y[t] == 2){
+
+        for(j in 1:K){     // previous state, from j to i
+
+          for(i in 1:K){   // current state
+
+         accumulator[i] = logbeta[t, i] + log(B[j, i]);
+
+          } // i
+
+          logbeta[t - 1, j] = log_sum_exp(accumulator);
+
+        } // j
+
+
+      } else {
+
+       for(j in 1:K){     // previous state, from j to i
+
+         for(i in 1:K){   // current state
 
          accumulator[i] = logbeta[t, i] + log(B[j, i]) + bernoulli_lpmf(y[t] | test_char[i]);
 
@@ -220,6 +258,9 @@ transformed parameters{
           logbeta[t - 1, j] = log_sum_exp(accumulator);
 
         } // j
+
+
+      } // if statement
 
       } // tforward
 
