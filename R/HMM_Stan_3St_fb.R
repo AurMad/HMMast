@@ -212,7 +212,11 @@ transformed parameters{
 
        } // end of loop for time
 
+       for(tf in row_first[a]:row_last[a])
+          alpha[tf] = softmax(logalpha[tf]);
+
       } // end of loop for the forward algorithm
+
 
 /// ----
 
@@ -262,26 +266,28 @@ transformed parameters{
 
       } // if statement
 
-      } // tforward
+      } // tbackward
 
+      for(tb in row_first[a]:row_last[a])
+        beta[tb] = softmax(logbeta[tb]);
 
    } // backward algorithm
 
-
       } // end of loop for animals
 
-   // forward-backward
+
+   { // forward-backward algorithm
+
    for(t in 1:n_obs){
 
-    alpha[t] = softmax(logalpha[t]);
-    beta[t] = softmax(logbeta[t]);
     loggamma[t] = alpha[t] .* beta[t];
-    gamma[t] = normalise(loggamma[t]);
 
-   }
+    }
 
-/// ----
+   for(t in 1:n_obs)
+     gamma[t] = normalise(loggamma[t]);
 
+   }// forward-backward algorithm
 
   }
 model{
@@ -352,8 +358,7 @@ stan_model <- cmdstanr::cmdstan_model(stan_file)
 stan_fit <- stan_model$sample(
   data = stan_data,
   chains = chains,
-  iter_sampling = iter_sampling
-)
+  iter_sampling = iter_sampling)
 
 ## extracting parameter summaries
 smry <- tibble::as_tibble(stan_fit$summary())
