@@ -366,6 +366,7 @@ smry <- tibble::as_tibble(stan_fit$summary())
 smry <- smry %>%
   dplyr::filter(!stringr::str_detect(variable, "alpha")) %>%
   dplyr::filter(!stringr::str_detect(variable, "beta")) %>%
+  dplyr::filter(!stringr::str_detect(variable, "gamma")) %>%
   dplyr::filter(!stringr::str_detect(variable, "BB")) %>%
   dplyr::filter(!stringr::str_detect(variable, "zeta")) %>%
   dplyr::filter(!stringr::str_detect(variable, "lp__"))
