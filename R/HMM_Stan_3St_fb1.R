@@ -2,7 +2,7 @@
 ## Stan model for 3 states
 ## Estimation using the forward-backward algorithm
 #################################################################
-#' Three state model
+#' Three state model estimated using the forward-backward algorithm
 #'
 #' @param .data
 #' @param level Level of interest for the analysis. Either 'cow' or 'lactation'.
@@ -32,7 +32,7 @@
 #' @export
 #'
 #' @examples
-hmm_3s_fb <- function(.data = data.frame(),
+hmm_3s_fb1 <- function(.data = data.frame(),
                      level = "lactation",
                      nrec_min = 2,
                      Sp_a = 40,
@@ -82,6 +82,7 @@ hmm_3s_fb <- function(.data = data.frame(),
 
   }
 
+
 ## Stan model
 stan_model_txt <-
 "functions{
@@ -102,6 +103,11 @@ data{
   array[n_units] int<lower = 0, upper = n_obs> row_first; // id of first row for each cow/lactation
   array[n_units] int<lower = 0, upper = n_obs> row_sec;   // id of second row for each cow/lactation
   array[n_units] int<lower = 0, upper = n_obs> row_last;  // id of last row for each /lactation
+  int<lower = 1> n_months; // number of months in the dataset
+  array[n_months] int<lower = 0> lg_months; // number of observations for each month
+  array[n_months] int<lower = 0> lg_months_cumul; // cumulative number of observations for each month
+  array[n_months] int<lower = 0> month_start; // row id for the first observation fr each month
+  array[n_obs] int<lower = 0, upper = n_obs> month_order;
 
   // test characteristics
   real<lower = 1> Sp_a;
@@ -166,6 +172,10 @@ transformed parameters{
   array[n_obs] vector[K] loggamma;
   array[n_obs] vector[K] gamma;
 
+  // monthly prevalences
+  array[n_months, K - 1] real month_prev;
+
+
    // loop over all animals
     for(a in 1:n_units){
 
@@ -216,7 +226,6 @@ transformed parameters{
           alpha[tf] = softmax(logalpha[tf]);
 
       } // end of loop for the forward algorithm
-
 
 /// ----
 
@@ -278,6 +287,30 @@ transformed parameters{
 
    }// forward-backward algorithm
 
+   // looping through all months
+
+{
+   matrix[n_obs, 2] prev_cumul;
+
+   for(m in 1:n_months){
+
+   prev_cumul[month_start[m], 1] = gamma[month_start[m], 2];
+   prev_cumul[month_start[m], 2] = gamma[month_start[m], 3];
+
+   for(j in 1:(lg_months[m] - 1)){
+
+    prev_cumul[month_start[m] + j, 1] = prev_cumul[month_start[m] + j - 1, 1] + gamma[month_order[month_start[m] + j], 2];
+    prev_cumul[month_start[m] + j, 2] = prev_cumul[month_start[m] + j - 1, 2] + gamma[month_order[month_start[m] + j], 3];
+
+   }
+
+    month_prev[m, 1] = prev_cumul[lg_months_cumul[m], 1] / lg_months[m];
+    month_prev[m, 2] = prev_cumul[lg_months_cumul[m], 2] / lg_months[m];
+
+   }
+
+}
+
   }
 model{
 
@@ -308,6 +341,9 @@ model{
   }"
 
 
+## Number of observations for each month
+lg_months <- sapply(1:max(z$month_id), function(x) length(which(z$month_id == x)))
+
 stan_data <- list(
   K = 3,
   n_obs = nrow(z),
@@ -316,6 +352,11 @@ stan_data <- list(
   row_first = z_agg$row_first,
   row_sec = z_agg$row_first + 1,
   row_last = z_agg$row_last,
+  n_months = max(z$month_id),
+  lg_months = lg_months,
+  lg_months_cumul = cumsum(lg_months),
+  month_order = unlist(sapply(1:max(z$month_id), function(x) which(z$month_id == x))),
+  month_start = cumsum(c(1, lg_months[-length(lg_months)])),
   Sp_a = Sp_a,
   Sp_b = Sp_b,
   Se1_a = Se1_a,
@@ -337,8 +378,6 @@ stan_data <- list(
   chains = chains,
   iter_sampling = iter_sampling
 )
-
-
 
 stan_file <- cmdstanr::write_stan_file(stan_model_txt)
 

@@ -10,13 +10,19 @@ scc <- scc1 |>
 ## with normal distributions on the log scale
 ## each lactation is considered as a unit
 md0 <- hmm_3s_f(scc)
+
 md1 <- hmm_3s_fb(scc)
+## this version estimates monthly prevalences
+## see month_prev in the summary
+md2 <- hmm_3s_fb1(scc)
 
 ## parameter summary
 ## test_char[1] is the probability of a false positive
 ## B[,] is the transition matrix on the probability scale
 md0$summary
 md1$summary
+View(md1$summary)
+View(md2$summary)
 
 ## MCMC draws
 draws <- md0$draws

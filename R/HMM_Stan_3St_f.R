@@ -33,28 +33,28 @@
 #'
 #' @examples
 hmm_3s_f <- function(.data = data.frame(),
-                     level = "lactation",
-                     nrec_min = 3,
-                     Sp_a = 40,
-                     Sp_b = 5,
-                     Se1_a = 40,
-                     Se1_b = 5,
-                     Se2_a = 40,
-                     Se2_b = 5,
-                     H_to_C_mean = -1,
-                     H_to_C_sd = 2,
-                     H_to_E_mean = -1,
-                     H_to_E_sd = 2,
-                     C_to_H_mean = -3,
-                     C_to_H_sd = 2,
-                     C_to_E_mean = -100,
-                     C_to_E_sd = 1,
-                     E_to_H_mean = 10,
-                     E_to_H_sd = 1,
-                     E_to_C_mean = -100,
-                     E_to_C_sd = 1,
-                     chains = 3,
-                     iter_sampling = 1000){
+                          level = "lactation",
+                          nrec_min = 2,
+                          Sp_a = 40,
+                          Sp_b = 5,
+                          Se1_a = 40,
+                          Se1_b = 5,
+                          Se2_a = 40,
+                          Se2_b = 5,
+                          H_to_C_mean = -1,
+                          H_to_C_sd = 2,
+                          H_to_E_mean = -1,
+                          H_to_E_sd = 2,
+                          C_to_H_mean = -3,
+                          C_to_H_sd = 2,
+                          C_to_E_mean = -100,
+                          C_to_E_sd = 1,
+                          E_to_H_mean = 10,
+                          E_to_H_sd = 1,
+                          E_to_C_mean = -100,
+                          E_to_C_sd = 1,
+                          chains = 3,
+                          iter_sampling = 1000){
 
 
   ## formatting the SCC data for analysis
@@ -79,12 +79,11 @@ hmm_3s_f <- function(.data = data.frame(),
     z <- z |>
       dplyr::rename(unit_id = cow_id)
 
-
   }
 
-## Stan model
+  ## Stan model
 stan_model_txt <-
-"data{
+    "data{
 
   int<lower = 1> K;      // number of states
   int<lower = 1> n_obs;   // number of observations
@@ -118,7 +117,7 @@ stan_model_txt <-
 }
 parameters{
 
-  array[K] real<lower = 0, upper = 1> test_char; // test characteristics.
+  array[K+1] real<lower = 0, upper = 1> test_char; // test characteristics.
   // Probabilities of positive test result conditionnally on latent state
   simplex[K] pi1;          // initial state probabilities
   array[6] real zeta;
@@ -158,41 +157,41 @@ transformed parameters{
       array[K] real accumulator;
 
       // first test in sequence
-      for(k1 in 1:K)
+      for(k1 in 1:K){
+
+       if(y[row_first[a]] == 2){
+
+        logalpha[row_first[a], k1] = log(pi1[k1]);
+
+           } else {
+
         logalpha[row_first[a], k1] = log(pi1[k1]) + bernoulli_lpmf(y[row_first[a]] | test_char[k1]);
+
+           }
+      }
 
       // test at times 2 to T
       for(t in row_sec[a]:row_last[a]){
-
-      if(y[t] == 2){
 
        for(j in 1:K){     // current state
 
          for(i in 1:K){   // state at t-1
 
-            accumulator[i] = logalpha[t-1, i] + log(B[i, j]);
+      if(y[t] == 2){
 
-          } // i
+           accumulator[i] = logalpha[t-1, i] + log(B[i, j]);
+
+        } else {
+
+           accumulator[i] = logalpha[t-1, i] + log(B[i, j]) + bernoulli_lpmf(y[t] | test_char[j]);
+
+           } // if statement
+
+       } // i
 
         logalpha[t, j] = log_sum_exp(accumulator);
 
        } // j
-
-        } else {
-
-        for(j in 1:K){     // current state
-
-          for(i in 1:K){   // state at t-1
-
-            accumulator[i] = logalpha[t-1, i] + log(B[i, j]) + bernoulli_lpmf(y[t] | test_char[j]);
-
-          } // i
-
-          logalpha[t, j] = log_sum_exp(accumulator);
-
-         } // j
-
-        } // if statement
 
        } // end of loop for time
 
@@ -229,7 +228,6 @@ model{
 
   }"
 
-
 stan_data <- list(
   K = 3,
   n_obs = nrow(z),
@@ -259,7 +257,6 @@ stan_data <- list(
   chains = chains,
   iter_sampling = iter_sampling
 )
-
 
 
 stan_file <- cmdstanr::write_stan_file(stan_model_txt)

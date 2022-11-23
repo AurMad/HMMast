@@ -30,7 +30,7 @@ check_mastitis_data <- function(.data = NULL){
 #' @export
 #'
 #' @examples
-format_mastitis_data <- function(.data, level = "lactation", nrec_min = 3){
+format_mastitis_data <- function(.data, level = "lactation", nrec_min = 2){
 
   check_mastitis_data(.data)
 
@@ -110,6 +110,7 @@ make_lactation <- function(.data){
   check_mastitis_data(.data)
 
   z <- .data |>
+    dplyr::filter(!is.na(test_res)) |>
     dplyr::group_by(cow_id, calv_date) |>
     dplyr::summarise(
       lac_id = dplyr::cur_group_id(),
@@ -257,7 +258,14 @@ expand_scc_data <- function(.data){
   z_expanded <- dplyr::bind_rows(z_expanded, z_expanded_miss) |>
     dplyr::arrange(cow_id, rec_date)
 
+  ## removing recording dates happening during the dry period
+  z_expanded <- z_expanded |>
+    dplyr::group_by(cow_id, calv_date) |>
+    dplyr::mutate(rec_date_max = max(rec_date[!is.na(test_res)])) |>
+    dplyr::ungroup() |>
+    dplyr::filter(rec_date <= rec_date_max) |>
+    dplyr::select(-rec_date_max)
+
   z_expanded
 
 }
-
