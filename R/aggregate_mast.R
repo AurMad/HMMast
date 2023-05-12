@@ -33,7 +33,6 @@ aggregate_by_lac <- function(.data){
       row_last = max(id)
     )
 
-
   return(by_lac)
 
 }

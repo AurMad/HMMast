@@ -255,8 +255,10 @@ expand_scc_data <- function(.data){
   z_expanded <- z_expanded |>
     dplyr::filter(!is.na(parity))
 
+  if(nrow(z_expanded_miss) > 0){
   z_expanded <- dplyr::bind_rows(z_expanded, z_expanded_miss) |>
     dplyr::arrange(cow_id, rec_date)
+  }
 
   ## removing recording dates happening during the dry period
   z_expanded <- z_expanded |>
